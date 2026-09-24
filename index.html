@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Skyport</title>
+  <style>
+    body { margin: 0; padding-bottom: 320px; font-family: system-ui, sans-serif; color: #1a1d23; background: #f7f8fa; }
+    section { max-width: 900px; margin: 0 auto; padding: 64px 20px; }
+    h1 { font-size: 44px; margin: 0 0 12px; }
+    h2 { font-size: 28px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+    .card { background: #fff; border: 2px solid #e4e7ec; border-radius: 12px; padding: 20px;
+            transition: border-color .3s, box-shadow .3s; }
+    .price { font-size: 28px; font-weight: 700; }
+    .note { color: #6b7280; font-size: 13px; }
+
+    /* The highlight the avatar triggers */
+    .highlight { border-color: #4f6bff !important; box-shadow: 0 0 0 6px rgba(79,107,255,.2); }
+    section.highlight { border-radius: 16px; }
+
+    /* The avatar widget */
+    #widget { position: fixed; right: 20px; bottom: 20px; width: 300px; background: #111;
+              color: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.3); }
+    #widget video { width: 100%; display: block; aspect-ratio: 1; object-fit: cover; background: #000; }
+    #bar { padding: 12px; display: flex; justify-content: space-between; align-items: center; }
+    #state { font-size: 13px; color: #aab; }
+    button { font: inherit; background: #4f6bff; color: #fff; border: 0; border-radius: 8px;
+             padding: 8px 16px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <section>
+    <p class="note">Skyport is a made-up product for this demo.</p>
+    <h1>Ship your app in one click.</h1>
+    <p>Connect a GitHub repo and Skyport handles the rest: builds, SSL, and preview links.</p>
+  </section>
+
+  <section id="features">
+    <h2>Features</h2>
+    <div class="grid">
+      <div class="card"><b>One-click deploys</b><p>Push to GitHub and you're live.</p></div>
+      <div class="card"><b>Free SSL</b><p>HTTPS on every app, automatically.</p></div>
+      <div class="card"><b>Preview links</b><p>A shareable URL for every pull request.</p></div>
+    </div>
+  </section>
+
+  <section id="pricing">
+    <h2>Pricing</h2>
+    <div class="grid">
+      <div class="card" id="hobby"><b>Hobby</b><div class="price">$0</div><p>1 app. Sleeps when idle.</p></div>
+      <div class="card" id="pro"><b>Pro</b><div class="price">$12/mo</div><p>Unlimited apps, custom domains.</p></div>
+      <div class="card" id="team"><b>Team</b><div class="price">$39/mo</div><p>Everything in Pro, 5 seats, shared logs.</p></div>
+    </div>
+  </section>
+
+  <section id="faq">
+    <h2>FAQ</h2>
+    <p><b>Can I get a refund?</b> Yes, every plan has a 14 day money back guarantee.</p>
+    <p><b>Which frameworks work?</b> Anything that runs in a container.</p>
+  </section>
+
+  <!-- The avatar -->
+  <div id="widget">
+    <video id="video" autoplay playsinline></video>
+    <div id="bar">
+      <span id="state">Talk to Ava</span>
+      <button id="start">Start</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.umd.min.js"></script>
+  <script>
+    const { Room, RoomEvent } = LivekitClient;
+    const video = document.getElementById('video');
+    const state = document.getElementById('state');
+
+    document.getElementById('start').onclick = async (e) => {
+      e.target.disabled = true;
+      state.textContent = 'Connecting…';
+
+      // 1. Get a token from our server and join the room
+      const { url, token } = await (await fetch('/token')).json();
+      const room = new Room();
+
+      // 2. The avatar joins as a participant. Play its audio + video.
+      room.on(RoomEvent.TrackSubscribed, (track) => track.attach(video));
+
+      // 3. Show what the agent is doing: listening, thinking or speaking
+      room.on(RoomEvent.ParticipantAttributesChanged, (changed) => {
+        if (changed['lk.agent.state']) state.textContent = changed['lk.agent.state'];
+      });
+
+      // 4. When the agent calls show_section, scroll there and highlight it
+      room.on(RoomEvent.DataReceived, (payload, participant, kind, topic) => {
+        if (topic !== 'ui') return;
+        const { section } = JSON.parse(new TextDecoder().decode(payload));
+        const el = document.getElementById(section);
+        if (!el) return;
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        document.querySelectorAll('.highlight').forEach((h) => h.classList.remove('highlight'));
+        el.classList.add('highlight');
+      });
+
+      await room.connect(url, token);
+      await room.localParticipant.setMicrophoneEnabled(true);
+      state.textContent = 'Waiting for Ava…';
+    };
+  </script>
+</body>
+</html>
