@@ -45,6 +45,7 @@ async def index(request: web.Request) -> web.FileResponse:
 app = web.Application()
 app.router.add_get("/", index)
 app.router.add_get("/token", token)
+app.router.add_static("/static", Path(__file__).parent / "static")  # site.css + site.js
 
 if __name__ == "__main__":
     web.run_app(app, host="127.0.0.1", port=8080)
